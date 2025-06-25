@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prototipo – ReportConverter Casos de Uso</title>
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .navbar-brand {
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background-color: #0d6efd;
+      color: #fff;
+    }
+    .toast-container {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 1080;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">ReportConverter</a>
+      <div class="d-flex gap-2">
+        <button id="tabReports" class="btn btn-outline-light tab-btn active">Reportes</button>
+        <button id="tabUsers" class="btn btn-outline-light tab-btn">Usuarios</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-4">
+    <!-- Report List Section -->
+    <section id="reportsSection">
+      <h2 class="mb-3">Listado de reportes</h2>
+      <div class="mb-3 d-flex gap-2">
+        <input id="searchReports" type="search" class="form-control" placeholder="Buscar reporte..." style="max-width: 300px;" />
+        <button class="btn btn-secondary" onclick="renderReports()">Limpiar</button>
+      </div>
+      <div class="table-responsive">
+        <table id="reportsTable" class="table table-striped align-middle"></table>
+      </div>
+    </section>
+
+    <!-- User Management Section (hidden by default) -->
+    <section id="usersSection" class="d-none">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Gestión de usuarios</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openUserModal()">+ Nuevo usuario</button>
+      </div>
+      <div class="table-responsive">
+        <table id="usersTable" class="table table-striped align-middle"></table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Transform Report Modal -->
+  <div class="modal fade" id="transformModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="transformForm" class="needs-validation" novalidate>
+          <div class="modal-header">
+            <h5 class="modal-title">Transformar reporte</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Formato destino</label>
+              <select id="formatSelect" class="form-select" required>
+                <option value="">Elegir formato</option>
+                <option value="CSV">CSV</option>
+                <option value="XLSX">XLSX</option>
+                <option value="PDF">PDF</option>
+              </select>
+              <div class="invalid-feedback">Seleccione un formato válido.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Filtro fecha mayor a</label>
+              <input id="dateFilter" type="date" class="form-control" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Transformar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Modal -->
+  <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="userForm" class="needs-validation" novalidate>
+          <div class="modal-header">
+            <h5 class="modal-title" id="userModalLabel">Nuevo usuario</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input id="userEmail" type="email" class="form-control" required />
+              <div class="invalid-feedback">Email requerido.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Contraseña</label>
+              <input id="userPassword" type="password" class="form-control" minlength="6" required />
+              <div class="invalid-feedback">Contraseña mínima 6 caracteres.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Rol</label>
+              <select id="userRole" class="form-select" required>
+                <option value="">Elija rol</option>
+                <option value="admin">Admin</option>
+                <option value="analista">Analista</option>
+              </select>
+              <div class="invalid-feedback">Rol requerido.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container"></div>
+
+  <!-- Bootstrap JS + Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ==== Datos de muestra ====
+    let reports = [
+      { id: 1, nombre: 'Ventas Q2', fecha: '2025-06-01', formato: 'CSV', estado: 'Disponible' },
+      { id: 2, nombre: 'Inventario', fecha: '2025-05-20', formato: 'XLSX', estado: 'Disponible' }
+    ];
+    let users = [
+      { id: 1, email: 'admin@empresa.com', rol: 'admin', activo: true },
+      { id: 2, email: 'ana@empresa.com', rol: 'analista', activo: true }
+    ];
+
+    // ==== Helpers UI ====
+    const reportsTable = document.getElementById('reportsTable');
+    const usersTable = document.getElementById('usersTable');
+    const toastContainer = document.querySelector('.toast-container');
+
+    function showToast(message, success = true) {
+      const toastEl = document.createElement('div');
+      toastEl.className = `toast align-items-center text-bg-${success ? 'success' : 'danger'} border-0`;
+      toastEl.role = 'alert';
+      toastEl.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+      toastContainer.appendChild(toastEl);
+      const bsToast = new bootstrap.Toast(toastEl, { delay: 3000 });
+      bsToast.show();
+      bsToast._element.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    }
+
+    // ==== Render reportes ====
+    function renderReports(filter = '') {
+      const rows = reports
+        .filter(r => r.nombre.toLowerCase().includes(filter.toLowerCase()))
+        .map(r => `<tr>
+          <td>${r.nombre}</td>
+          <td>${r.fecha}</td>
+          <td>${r.formato}</td>
+          <td>${r.estado}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-primary me-1" onclick="openTransformModal(${r.id})">Transformar</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteReport(${r.id})"><i class="bi bi-trash"></i> Eliminar</button>
+          </td>
+        </tr>`);
+      reportsTable.innerHTML = `<thead><tr><th>Nombre</th><th>Fecha</th><th>Formato</th><th>Estado</th><th></th></tr></thead><tbody>${rows.join('') || '<tr><td colspan="5" class="text-center">Sin resultados</td></tr>'}</tbody>`;
+    }
+
+    // ==== Render usuarios ====
+    function renderUsers() {
+      const rows = users.map(u => `<tr>
+        <td>${u.email}</td>
+        <td><span class="badge ${u.rol === 'admin' ? 'bg-danger' : 'bg-info text-dark'}">${u.rol}</span></td>
+        <td>${u.activo ? 'Activo' : 'Inactivo'}</td>
+      </tr>`);
+      usersTable.innerHTML = `<thead><tr><th>Email</th><th>Rol</th><th>Estado</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    }
+
+    // ==== Transform report flow ====
+    let selectedReportId = null;
+    const transformModal = new bootstrap.Modal('#transformModal');
+    const transformForm = document.getElementById('transformForm');
+
+    function openTransformModal(id) {
+      selectedReportId = id;
+      transformForm.reset();
+      transformModal.show();
+    }
+
+    transformForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.checkValidity()) {
+        this.classList.add('was-validated');
+        return;
+      }
+      const format = document.getElementById('formatSelect').value;
+      const report = reports.find(r => r.id === selectedReportId);
+      if (report) {
+        report.formato = format;
+        report.estado = 'Transformado';
+        renderReports();
+        showToast('Transformación exitosa.');
+      }
+      transformModal.hide();
+    });
+
+    // ==== Borrar reporte ====
+    function deleteReport(id) {
+      reports = reports.filter(r => r.id !== id);
+      renderReports();
+      showToast('Reporte eliminado.', true);
+    }
+
+    // ==== User flow ====
+    const userModal = new bootstrap.Modal('#userModal');
+    const userForm = document.getElementById('userForm');
+
+    function openUserModal() {
+      userForm.reset();
+      userForm.classList.remove('was-validated');
+      userModal.show();
+    }
+
+    userForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.checkValidity()) {
+        this.classList.add('was-validated');
+        return;
+      }
+      const email = document.getElementById('userEmail').value.trim();
+      const password = document.getElementById('userPassword').value;
+      const role = document.getElementById('userRole').value;
+      if (users.some(u => u.email === email)) {
+        showToast('Email ya registrado.', false);
+        return;
+      }
+      users.push({ id: Date.now(), email, rol: role, activo: true });
+      renderUsers();
+      showToast('Usuario creado con éxito.');
+      userModal.hide();
+    });
+
+    // ==== Search binding ====
+    document.getElementById('searchReports').addEventListener('input', function () {
+      renderReports(this.value);
+    });
+
+    // ==== Tab switching ====
+    const reportsSection = document.getElementById('reportsSection');
+    const usersSection = document.getElementById('usersSection');
+
+    document.getElementById('tabReports').addEventListener('click', () => {
+      reportsSection.classList.remove('d-none');
+      usersSection.classList.add('d-none');
+      document.getElementById('tabReports').classList.add('active');
+      document.getElementById('tabUsers').classList.remove('active');
+    });
+    document.getElementById('tabUsers').addEventListener('click', () => {
+      usersSection.classList.remove('d-none');
+      reportsSection.classList.add('d-none');
+      document.getElementById('tabUsers').classList.add('active');
+      document.getElementById('tabReports').classList.remove('active');
+    });
+
+    // ==== Init ====
+    renderReports();
+    renderUsers();
+  </script>
+</body>
+</html>
